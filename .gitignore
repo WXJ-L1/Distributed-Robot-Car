@@ -1,0 +1,13 @@
+*.o
+*.d
+*.crf
+*.lnp
+*.axf
+*.htm
+*.sct
+*.dep
+*.lst
+*.map
+Debug/
+Release/
+*.tmp
