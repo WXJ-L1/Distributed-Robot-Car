@@ -10,8 +10,8 @@
 /*
  * 每辆车单独改这里
  */
-#define MY_CAR_ID 1
-#define BIRTH_NODE 41
+#define MY_CAR_ID 2
+#define BIRTH_NODE 42
 
 extern volatile uint8_t work_state;
 

@@ -1059,6 +1059,22 @@ void Parse_MQTT_Broadcast_Message(const char *json_str){
             {
                 UART1_SendString("[ServiceWait] Owner left service_node, apply real destination\r\n");
                 ServiceWait_ApplyRealDestination("[ServiceWait] Apply real destination from wait node");
+                return;
+            }
+            if(service_owner_wait_active &&
+               service_owner_wait_phase >= 1 &&
+               start_node == service_owner_wait_node &&
+               end_node == -1){
+                if(service_owner_wait_phase == 1){
+                    service_owner_follower_car_id = (int8_t)car_id;
+                    service_owner_wait_phase = 2;
+                    service_owner_wait_tick = HAL_GetTick();
+                    UART1_SendString("[ServiceOwner] Follower inferred at wait_node by Type2\r\n");
+                }
+                UART1_SendString("[ServiceOwner] Follower at wait_node by Type2, leave now\r\n");
+                Start_Path_To_Target(service_owner_target_node,
+                                     "[ServiceOwner] Follower position confirms wait node");
+                return;
             }
             if(work_state == 1 || work_state == 3){
                 road_sync_required = 0;
@@ -1297,15 +1313,19 @@ void Parse_MQTT_Broadcast_Message(const char *json_str){
         if(state == SERVICE_TYPE12_WAITING_NODE &&
            owner_car_id == MY_CAR_ID &&
            service_owner_wait_active &&
-           service_owner_wait_phase == 2 &&
+           service_owner_wait_phase >= 1 &&
            dest_node == service_owner_dest_node &&
            wait_node == service_owner_wait_node){
-            if(service_owner_follower_car_id == -1 ||
-               service_owner_follower_car_id == car_id){
-                UART1_SendString("[ServiceOwner] Follower arrived wait_node, leave now\r\n");
-                Start_Path_To_Target(service_owner_target_node,
-                                     "[ServiceOwner] Follower arrived, leave now");
+            if(service_owner_wait_phase == 1){
+                service_owner_follower_car_id = (int8_t)car_id;
+                service_owner_wait_phase = 2;
+                service_owner_wait_tick = HAL_GetTick();
+                UART1_SendString("[ServiceOwner] Missing WAIT_ACCEPT, recovered by WAITING_NODE\r\n");
             }
+            service_owner_follower_car_id = (int8_t)car_id;
+            UART1_SendString("[ServiceOwner] Follower arrived wait_node, leave now\r\n");
+            Start_Path_To_Target(service_owner_target_node,
+                                 "[ServiceOwner] Follower arrived, leave now");
 
             return;
         }
