@@ -4,33 +4,35 @@
 
 #include <stdio.h>
 #include <string.h>
+
 #include "cmsis_os2.h"
 #include "Motor.h"
 #include "FreeRTOS.h"
 #include "UART.h"
 #include "oled.h"
 #include "MQTT.h"
-#include "main.h"
 #include "mpu6050_turn.h"
 #include "buzzer.h"
 #include "turning.h"
 #include "map.h"
 #include "broadcast.h"
+#include "service_wait.h"
 //**********************************************
 #define MQTT_TOPIC  "car/broadcast"
+
 uint8_t system_ready = 0;
 char global_target[512] = "a";
 
-extern osMessageQueueId_t getQueueHandle;   //用于UDP发送队列
+extern osMessageQueueId_t getQueueHandle;   // 用于UDP发送队列
 extern osMessageQueueId_t cmdQueueHandle;   // UDP type5
 extern osMessageQueueId_t mqttQueueHandle;  // MQTT type0/type1/type2/type4/type6
-
 extern volatile uint8_t esp_is_busy;
 
 // 引入 turning.h 里的自动执行函数声明
 extern void Execute_Auto_Driving(int8_t* road, int8_t road_len, int* turn_angles, int8_t turn_angles_len);
 // 【声明外部变量】告诉 MAIN.c，这个变量在 broadcast.c 里面定义过了，直接用就行
 extern uint8_t Check_And_Broadcast_Task_a;
+
 /**
  * @brief 检查 getQueueHandle 队列并发送 UDP 数据
  * @note  需在任务循环中周期性调用，非阻塞读取队列
@@ -51,14 +53,12 @@ void SendFromGetQueueHandle(void)
     }
 }
 
-
 /**
  * @brief  通过 UDP 发送字符串数据（非阻塞/队列模式）
  * @param  str: 要发送的内容
  * @retval 1: 入队成功, 0: 入队失败或内存不足
  */
-uint8_t ESP8266_UDP_SendString(char *str)
-{
+uint8_t ESP8266_UDP_SendString(char *str){
     if (str == NULL) {
         return 0;
     }
@@ -148,12 +148,9 @@ void StartDefaultTask(void *argument){
                 Copy_Clean_String(mqtt_target,
                                   sizeof(mqtt_target),
                                   p_mqtt_data);
-
-                UART1_SendString("[MQTT CLEAN RAW] ");
-                UART1_SendString(mqtt_target);
-                UART1_SendString("\r\n");
-
-
+                // UART1_SendString("[MQTT CLEAN RAW] ");
+                // UART1_SendString(mqtt_target);
+                // UART1_SendString("\r\n");
                 Parse_MQTT_Broadcast_Message(mqtt_target);
                 vPortFree(p_mqtt_data);
                 p_mqtt_data = NULL;
@@ -171,8 +168,7 @@ void StartDefaultTask(void *argument){
 * @retval None
 */
 /* USER CODE END Header_StartTask02 */
-void StartTask02(void *argument)
-{
+void StartTask02(void *argument){
     while(!system_ready) osDelay(200);
     osDelay(100);
     UART1_SendString("[Task06] IN for_loop...\r\n");
@@ -206,27 +202,47 @@ void StartTask02(void *argument)
                 car_current_node = car_final_node;
                 current_start_node = car_current_node;
                 current_end_node = -1;
-                Check_And_Broadcast_Task_a = 0;
-                work_state = 2;
-                UART1_SendString("[Task06] Mission Completed. State -> 2 (Done).\r\n");
+                /*
+                 * 此时 work_state 还是 4，可以发送最终 type2。
+                 */
+                Broadcast_Type2_Position();
+                if(ServiceWait_IsGoingToWaitNode()){
+                    /*
+                     * 这次到达的是等待点，不是真实目的地。
+                     */
+                    ServiceWait_MarkArrivedWaitNode();
+                    work_state = 6;
+                    Broadcast_Type12_Service(SERVICE_TYPE12_WAITING_NODE,
+                                             ServiceWait_GetRealDestNode(),
+                                             ServiceWait_GetServiceNodeValue(),
+                                             -1,
+                                             ServiceWait_GetWaitNodeValue(),
+                                             ServiceWait_GetOwnerCarId());
+
+                    UART1_SendString("[Task06] Arrived wait node. State -> 6\r\n");
+                }
+                else{
+                    Check_And_Broadcast_Task_a = 0;
+                    work_state = 2;
+                    UART1_SendString("[Task06] Mission Completed. State -> 2 (Done).\r\n");
+                }
             }
             else if (work_state == 5) {
                 car_current_node = BIRTH_NODE;
                 current_start_node = BIRTH_NODE;
                 current_end_node = -1;
+                Broadcast_Type2_Position();
                 work_state = 0;
                 UART1_SendString("[Task06] Return Completed. State -> 0 (Idle).\r\n");
             }
         }
-
         osDelay(200);
     }
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-void StartTask04(void *argument)
-{
+void StartTask04(void *argument){
     while(!system_ready) osDelay(20);
     Broadcast_Type4_OnlineStatus(1);
     UART1_SendString("[Task04] Mission .\r\n");

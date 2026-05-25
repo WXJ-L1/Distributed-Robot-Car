@@ -5,22 +5,39 @@
 #ifndef BROADCAST_H
 #define BROADCAST_H
 
-
 #include <stdint.h>
+
+/*
+ * 每辆车单独改这里
+ */
+#define MY_CAR_ID 1
+#define BIRTH_NODE 41
+
 extern volatile uint8_t work_state;
-// 假设定义该小车的 ID 为 1，实际项目中可从配置或硬件拨码开关读取
-#define MY_CAR_ID 2
-#define BIRTH_NODE 42
+
 extern int8_t car_current_node;
 extern int8_t car_final_node;
 extern int8_t current_start_node;
 extern int8_t current_end_node;
-void Check_And_Broadcast_Task(void) ;
+
+extern uint8_t Check_And_Broadcast_Task_a;
+
+void Check_And_Broadcast_Task(void);
 void Parse_Broadcast_Message(const char* json_str);
+void Parse_MQTT_Broadcast_Message(const char *json_str);
+
 uint8_t Broadcast_Type0_State(void);
 uint8_t Broadcast_Type1_Road(void);
 void Broadcast_Type2_Position(void);
 void Broadcast_Type4_OnlineStatus(uint8_t online_status);
-void Parse_MQTT_Broadcast_Message(const char *json_str);
+void Broadcast_Debug_Angles(void);
 void Try_Apply_Path(void);
-#endif // BROADCAST_H
+
+uint8_t Broadcast_Type12_Service(int state,
+                                 int8_t dest_node,
+                                 int8_t service_node,
+                                 int8_t leave_to_node,
+                                 int8_t wait_node,
+                                 int8_t owner_car_id);
+
+#endif

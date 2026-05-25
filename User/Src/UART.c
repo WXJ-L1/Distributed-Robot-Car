@@ -376,7 +376,7 @@ void WIFI_Init(void){
     ESP8266_SendCmd("AT+CWMODE_CUR=1\r\n", "OK", 1500);
     ESP8266_SendCmd("AT+CWDHCP_DEF=1,1\r\n", "OK", 1000);
     // 连接 WiFi"TP-LINK_509""TP509lab@."
-    if (ESP8266_SendCmd("AT+CWJAP_CUR=\"Xiao\",\"123456789\"\r\n", "WIFI GOT IP", 20000)){
+    if (ESP8266_SendCmd("AT+CWJAP_CUR=\"Redmi K50 Ultra\",\"12345678\"\r\n", "WIFI GOT IP", 20000)){
         OLED_ShowString(0, 0, "WIFI: OK");
         uint8_t ip_ready = 0;
         for(uint8_t i = 0; i < 5; i++){
@@ -398,7 +398,7 @@ void WIFI_Init(void){
     }
 
     ESP8266_SendCmd("AT+CIPMUX=0\r\n", "OK", 1000);
-    if(ESP8266_SendCmd("AT+CIPSTART=\"UDP\",\"192.168.135.96\",8080,10001,0\r\n", "OK", 5000)){
+    if(ESP8266_SendCmd("AT+CIPSTART=\"UDP\",\"192.168.214.103\",8080,10001,0\r\n", "OK", 5000)){
         OLED_ShowString(0, 2, "UDP: OK");
         osDelay(500);
         if(ESP8266_SendCmd("AT+CIPSEND=11\r\n", ">", 1000)){

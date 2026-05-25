@@ -68,6 +68,8 @@ add_executable(${CMAKE_PROJECT_NAME}
         User/Inc/car_queue.h
         User/Src/MQTT.c
         User/Inc/MQTT.h
+        User/Inc/service_wait.h
+        User/Src/service_wait.c
 
 )
 

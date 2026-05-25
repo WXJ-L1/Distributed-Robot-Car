@@ -17,12 +17,12 @@
 #define MQTT_UART              huart6
 #define MQTT_UART_INSTANCE     USART6
 // 连接 WiFi"TP-LINK_509""TP509lab@."
-#define MQTT_WIFI_SSID         "Xiao"
-#define MQTT_WIFI_PASSWORD     "123456789"
+#define MQTT_WIFI_SSID         "Redmi K50 Ultra"
+#define MQTT_WIFI_PASSWORD     "12345678"
 
 #define MQTT_BROKER            "broker.emqx.io"
 #define MQTT_PORT              1883
-#define MQTT_CLIENT_ID         "CAR2_MQTT_CLIENT"
+#define MQTT_CLIENT_ID         "CAR1_MQTT_CLIENT"
 
 #define MQTT_DMA_RX_SIZE       128
 #define MQTT_IRQ_BUF_SIZE      512
