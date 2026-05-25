@@ -14,6 +14,7 @@ extern "C" {
 #define SERVICE_WAIT_IDLE              0
 #define SERVICE_WAIT_GOING_WAIT_NODE   1
 #define SERVICE_WAIT_AT_WAIT_NODE      2
+#define SERVICE_WAIT_WAIT_LEAVE_PLAN   3
 
 /*
  * type12 state 定义
@@ -54,6 +55,9 @@ uint8_t ServiceWait_Start(int8_t owner_car_id,
                           int8_t service_node,
                           int8_t wait_node,
                           int8_t owner_leave_to_node);
+uint8_t ServiceWait_WaitLeavePlan(int8_t owner_car_id,
+                                  int8_t real_dest_node,
+                                  int8_t service_node);
 
 /*
  * 状态查询
@@ -61,6 +65,7 @@ uint8_t ServiceWait_Start(int8_t owner_car_id,
 uint8_t ServiceWait_IsActive(void);
 uint8_t ServiceWait_IsGoingToWaitNode(void);
 uint8_t ServiceWait_IsAtWaitNode(void);
+uint8_t ServiceWait_IsWaitingLeavePlan(void);
 /*
  * 后车到达等待点后调用
  */
@@ -86,6 +91,8 @@ int8_t ServiceWait_GetRealDestNode(void);
 int8_t ServiceWait_GetServiceNodeValue(void);
 int8_t ServiceWait_GetWaitNodeValue(void);
 int8_t ServiceWait_GetOwnerLeaveToNode(void);
+uint8_t ServiceWait_IsSameOwnerAndDest(int8_t owner_car_id,
+                                       int8_t dest_node);
 
 #ifdef __cplusplus
 }

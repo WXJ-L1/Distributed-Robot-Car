@@ -175,8 +175,7 @@ int8_t ServiceWait_GetLeaveToNodeByNextTarget(int8_t current_dest_node,
     int8_t current_index = ServiceWait_FindMainLineIndex(current_service_node);
     int8_t next_index = ServiceWait_FindMainLineIndex(next_main_node);
 
-    if(current_index < 0 || next_index < 0)
-    {
+    if(current_index < 0 || next_index < 0){
         return -1;
     }
 
@@ -207,35 +206,28 @@ uint8_t ServiceWait_Start(int8_t owner_car_id,
                           int8_t real_dest_node,
                           int8_t service_node,
                           int8_t wait_node,
-                          int8_t owner_leave_to_node)
-{
-    if(owner_car_id < 0)
-    {
+                          int8_t owner_leave_to_node){
+    if(owner_car_id < 0){
         return 0;
     }
 
-    if(!ServiceWait_IsDestSupported(real_dest_node))
-    {
+    if(!ServiceWait_IsDestSupported(real_dest_node)){
         return 0;
     }
 
-    if(service_node < 0 || service_node >= MAX_NODES)
-    {
+    if(service_node < 0 || service_node >= MAX_NODES){
         return 0;
     }
 
-    if(wait_node < 0 || wait_node >= MAX_NODES)
-    {
+    if(wait_node < 0 || wait_node >= MAX_NODES){
         return 0;
     }
 
-    if(owner_leave_to_node < 0 || owner_leave_to_node >= MAX_NODES)
-    {
+    if(owner_leave_to_node < 0 || owner_leave_to_node >= MAX_NODES){
         return 0;
     }
 
     sw_mode = SERVICE_WAIT_GOING_WAIT_NODE;
-
     sw_owner_car_id = owner_car_id;
     sw_real_dest_node = real_dest_node;
     sw_service_node = service_node;
@@ -245,43 +237,69 @@ uint8_t ServiceWait_Start(int8_t owner_car_id,
     return 1;
 }
 
-uint8_t ServiceWait_IsActive(void)
-{
+uint8_t ServiceWait_WaitLeavePlan(int8_t owner_car_id,
+                                  int8_t real_dest_node,
+                                  int8_t service_node){
+    if(owner_car_id < 0){
+        return 0;
+    }
+
+    if(!ServiceWait_IsDestSupported(real_dest_node)){
+        return 0;
+    }
+
+    if(service_node < 0 || service_node >= MAX_NODES){
+        return 0;
+    }
+
+    if(sw_mode == SERVICE_WAIT_GOING_WAIT_NODE ||
+       sw_mode == SERVICE_WAIT_AT_WAIT_NODE){
+        return 0;
+    }
+
+    sw_mode = SERVICE_WAIT_WAIT_LEAVE_PLAN;
+    sw_owner_car_id = owner_car_id;
+    sw_real_dest_node = real_dest_node;
+    sw_service_node = service_node;
+    sw_wait_node = -1;
+    sw_owner_leave_to_node = -1;
+
+    return 1;
+}
+
+uint8_t ServiceWait_IsActive(void){
     return (sw_mode != SERVICE_WAIT_IDLE) ? 1 : 0;
 }
 
-uint8_t ServiceWait_IsGoingToWaitNode(void)
-{
+uint8_t ServiceWait_IsGoingToWaitNode(void){
     return (sw_mode == SERVICE_WAIT_GOING_WAIT_NODE) ? 1 : 0;
 }
 
-uint8_t ServiceWait_IsAtWaitNode(void)
-{
+uint8_t ServiceWait_IsAtWaitNode(void){
     return (sw_mode == SERVICE_WAIT_AT_WAIT_NODE) ? 1 : 0;
 }
 
-void ServiceWait_MarkArrivedWaitNode(void)
-{
-    if(sw_mode == SERVICE_WAIT_GOING_WAIT_NODE)
-    {
+uint8_t ServiceWait_IsWaitingLeavePlan(void){
+    return (sw_mode == SERVICE_WAIT_WAIT_LEAVE_PLAN) ? 1 : 0;
+}
+
+void ServiceWait_MarkArrivedWaitNode(void){
+    if(sw_mode == SERVICE_WAIT_GOING_WAIT_NODE){
         sw_mode = SERVICE_WAIT_AT_WAIT_NODE;
     }
 }
 
 uint8_t ServiceWait_CheckOwnerLeftEntry(int8_t car_id,
                                         int8_t start_node,
-                                        int8_t end_node)
-{
-    if(sw_mode != SERVICE_WAIT_AT_WAIT_NODE)
-    {
+                                        int8_t end_node){
+    if(sw_mode != SERVICE_WAIT_AT_WAIT_NODE &&
+       sw_mode != SERVICE_WAIT_WAIT_LEAVE_PLAN){
         return 0;
     }
 
-    if(car_id != sw_owner_car_id)
-    {
+    if(car_id != sw_owner_car_id){
         return 0;
     }
-
     /*
      * 核心判断：
      * 前车从 service_node 离开，并且方向等于它之前公布的 leave_to_node。
@@ -292,9 +310,16 @@ uint8_t ServiceWait_CheckOwnerLeftEntry(int8_t car_id,
      * 收到 type2: start_node=1,end_node=0；
      * 说明前车已经离开 1，后车可以从 4 -> 1 -> 21。
      */
+    if(sw_mode == SERVICE_WAIT_WAIT_LEAVE_PLAN){
+        return (start_node == sw_service_node && end_node != -1) ? 1 : 0;
+    }
+
     if(start_node == sw_service_node &&
-       end_node == sw_owner_leave_to_node)
-    {
+       end_node == sw_owner_leave_to_node){
+        return 1;
+    }
+
+    if(start_node == sw_owner_leave_to_node){
         return 1;
     }
 
@@ -309,22 +334,35 @@ int8_t ServiceWait_GetOwnerCarId(void){
     return sw_owner_car_id;
 }
 
-int8_t ServiceWait_GetRealDestNode(void)
-{
+int8_t ServiceWait_GetRealDestNode(void){
     return sw_real_dest_node;
 }
 
-int8_t ServiceWait_GetServiceNodeValue(void)
-{
+int8_t ServiceWait_GetServiceNodeValue(void){
     return sw_service_node;
 }
 
-int8_t ServiceWait_GetWaitNodeValue(void)
-{
+int8_t ServiceWait_GetWaitNodeValue(void){
     return sw_wait_node;
 }
 
-int8_t ServiceWait_GetOwnerLeaveToNode(void)
-{
+int8_t ServiceWait_GetOwnerLeaveToNode(void){
     return sw_owner_leave_to_node;
+}
+
+uint8_t ServiceWait_IsSameOwnerAndDest(int8_t owner_car_id,
+                                       int8_t dest_node){
+    if(sw_mode == SERVICE_WAIT_IDLE){
+        return 0;
+    }
+
+    if(sw_owner_car_id != owner_car_id){
+        return 0;
+    }
+
+    if(sw_real_dest_node != dest_node){
+        return 0;
+    }
+
+    return 1;
 }

@@ -62,7 +62,7 @@ static uint8_t other_running_path_synced = 0;
 static uint8_t type0_announced_ok = 0;
 
 #define SERVICE_ACCEPT_TIMEOUT_MS      1500
-#define SERVICE_ARRIVE_TIMEOUT_MS      20000
+#define SERVICE_ARRIVE_TIMEOUT_MS      45000
 
 /*
  * 本车作为“前车”时的等待点握手状态
@@ -84,6 +84,7 @@ static int8_t service_owner_follower_car_id = -1;
 static void ServiceOwner_ResetWait(void);
 static void Start_Path_To_Target(int8_t target_node, const char *reason);
 static uint8_t ServiceOwner_BroadcastLeavePlan(int8_t next_target_node);
+static void ServiceWait_ApplyRealDestination(const char *reason);
 
 static void Enter_Path_Wait_Window(const char *reason){
     pending_path_apply = 1;
@@ -158,6 +159,14 @@ void Check_And_Broadcast_Task(void){
             }
             return;
         }
+    }
+    if(ServiceWait_IsWaitingLeavePlan() && work_state == 1){
+        uint32_t now = HAL_GetTick();
+        if(now - last_type0_broadcast_tick >= TYPE0_RESEND_INTERVAL_MS){
+            last_type0_broadcast_tick = now;
+            Broadcast_Type0_State();
+        }
+        return;
     }
     if(work_state == 2 && Check_And_Broadcast_Task_a == 0){
         Check_And_Broadcast_Task_a = 1;
@@ -574,6 +583,25 @@ static void Start_Path_To_Target(int8_t target_node, const char *reason){
     Broadcast_Type0_State();
 }
 
+static void ServiceWait_ApplyRealDestination(const char *reason){
+    car_final_node = ServiceWait_GetRealDestNode();
+
+    ServiceWait_Reset();
+
+    work_state = 1;
+    type0_announced_ok = 0;
+    last_type0_broadcast_tick = 0;
+    waiting_type6 = 0;
+    pending_path_apply = 0;
+    road_sync_required = 0;
+    road_sync_required_tick = 0;
+    last_type1_sync_tick = 0;
+    last_path_retry_tick = HAL_GetTick();
+
+    Enter_Path_Wait_Window(reason);
+    Broadcast_Type0_State();
+}
+
 static uint8_t ServiceOwner_BroadcastLeavePlan(int8_t next_target_node){
     int8_t current_dest = car_current_node;
     int8_t service_node = ServiceWait_GetServiceNode(current_dest);
@@ -633,6 +661,11 @@ void Try_Apply_Path(void){
     }
     if(road_sync_required){
         UART1_SendString("[Path] Block Try_Apply_Path: wait type1 road\r\n");
+        return;
+    }
+
+    if(ServiceWait_IsWaitingLeavePlan()){
+        UART1_SendString("[Path] Block Try_Apply_Path: service node occupied\r\n");
         return;
     }
 
@@ -803,6 +836,7 @@ void Parse_Broadcast_Message(const char *json_str){
                 return;
             }
         }
+        ServiceWait_Reset();
         car_final_node = final_node;
         Check_And_Broadcast_Task_a = 0;
         waiting_type6 = 0;
@@ -884,6 +918,12 @@ void Parse_MQTT_Broadcast_Message(const char *json_str){
             return;
         }
         if(work == 1 || work == 3){
+            if(car_id == ServiceWait_GetOwnerCarId() &&
+               ServiceWait_IsAtWaitNode()){
+                UART1_SendString("[ServiceWait] Owner entered return flow, apply real destination\r\n");
+                ServiceWait_ApplyRealDestination("[ServiceWait] Owner return flow, apply real destination");
+                return;
+            }
             uint8_t updated = Car_Queue_Update(car_id, work);
             if(updated){
                 AcceptUpdate = 1;
@@ -917,6 +957,12 @@ void Parse_MQTT_Broadcast_Message(const char *json_str){
         }
 
         else if(work == 4 || work == 5){
+            if(car_id == ServiceWait_GetOwnerCarId() &&
+               ServiceWait_IsAtWaitNode()){
+                UART1_SendString("[ServiceWait] Owner is leaving by Type0, apply real destination\r\n");
+                ServiceWait_ApplyRealDestination("[ServiceWait] Owner running, apply real destination");
+                return;
+            }
             UART1_SendString("[MQTT Parse] Other car running, remember running car and remove from queue\r\n");
             Car_Queue_Update(car_id, 0);
             Car_Queue_Print();
@@ -1012,23 +1058,7 @@ void Parse_MQTT_Broadcast_Message(const char *json_str){
                                    (int8_t)end_node))
             {
                 UART1_SendString("[ServiceWait] Owner left service_node, apply real destination\r\n");
-
-                car_final_node = ServiceWait_GetRealDestNode();
-
-                ServiceWait_Reset();
-
-                work_state = 1;
-                type0_announced_ok = 0;
-                last_type0_broadcast_tick = 0;
-                waiting_type6 = 0;
-                pending_path_apply = 0;
-                road_sync_required = 0;
-                road_sync_required_tick = 0;
-                last_type1_sync_tick = 0;
-                last_path_retry_tick = HAL_GetTick();
-
-                Enter_Path_Wait_Window("[ServiceWait] Apply real destination from wait node");
-                Broadcast_Type0_State();
+                ServiceWait_ApplyRealDestination("[ServiceWait] Apply real destination from wait node");
             }
             if(work_state == 1 || work_state == 3){
                 road_sync_required = 0;
@@ -1153,6 +1183,27 @@ void Parse_MQTT_Broadcast_Message(const char *json_str){
                  leave_to_node,
                  wait_node);
         UART1_SendString(debug_buf);
+        if(state == SERVICE_TYPE12_SERVING &&
+           work_state == 1 &&
+           car_final_node == dest_node &&
+           service_node >= 0 &&
+           service_node < MAX_NODES){
+            if(ServiceWait_WaitLeavePlan((int8_t)car_id,
+                                         (int8_t)dest_node,
+                                         (int8_t)service_node)){
+                pending_path_apply = 0;
+                waiting_type6 = 0;
+                road_sync_required = 0;
+                road_sync_required_tick = 0;
+                last_type1_sync_tick = 0;
+                type0_announced_ok = 0;
+                last_type0_broadcast_tick = 0;
+                Car_Queue_Update(MY_CAR_ID, work_state);
+                Broadcast_Type0_State();
+                UART1_SendString("[ServiceWait] Same dest occupied, wait leave plan\r\n");
+            }
+            return;
+        }
         /*
          * 后车收到前车的 LEAVE_PLAN。
          * 如果我也要去同一个目的地，并且还没开始行驶，
@@ -1160,9 +1211,15 @@ void Parse_MQTT_Broadcast_Message(const char *json_str){
          */
         if(state == SERVICE_TYPE12_LEAVE_PLAN &&
            work_state == 1 &&
-           car_final_node == dest_node &&
+           (car_final_node == dest_node ||
+            ServiceWait_IsSameOwnerAndDest((int8_t)car_id,
+                                           (int8_t)dest_node)) &&
            wait_node >= 0 &&
            wait_node < MAX_NODES){
+            if(Get_Head_CarId() != MY_CAR_ID){
+                UART1_SendString("[ServiceWait] Leave plan seen, not queue head, keep waiting\r\n");
+                return;
+            }
             if(ServiceWait_Start((int8_t)car_id,
                                  (int8_t)dest_node,
                                  (int8_t)service_node,
@@ -1209,6 +1266,18 @@ void Parse_MQTT_Broadcast_Message(const char *json_str){
         /*
          * 前车收到后车 state=3：确认后车要去等待点。
          */
+        if(state == SERVICE_TYPE12_WAIT_ACCEPT &&
+           ServiceWait_IsSameOwnerAndDest((int8_t)owner_car_id,
+                                          (int8_t)dest_node) &&
+           service_node >= 0 &&
+           service_node < MAX_NODES){
+            ServiceWait_WaitLeavePlan((int8_t)car_id,
+                                      (int8_t)dest_node,
+                                      (int8_t)service_node);
+            UART1_SendString("[ServiceWait] Another follower accepted, wait behind it\r\n");
+            return;
+        }
+
         if(state == SERVICE_TYPE12_WAIT_ACCEPT &&
            owner_car_id == MY_CAR_ID &&
            service_owner_wait_active &&
