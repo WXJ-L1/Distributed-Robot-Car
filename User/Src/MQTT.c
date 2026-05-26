@@ -22,7 +22,7 @@
 
 #define MQTT_BROKER            "broker.emqx.io"
 #define MQTT_PORT              1883
-#define MQTT_CLIENT_ID         "CAR1_MQTT_CLIENT"
+#define MQTT_CLIENT_ID         "CAR2_MQTT_CLIENT"
 
 #define MQTT_DMA_RX_SIZE       128
 #define MQTT_IRQ_BUF_SIZE      512

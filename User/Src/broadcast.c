@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include "stm32f4xx_hal.h"
 
 #include "broadcast.h"
 #include "buzzer.h"
@@ -13,7 +14,6 @@
 #include "cmsis_os2.h"
 #include "map.h"
 #include "MQTT.h"
-#include "stm32f4xx_hal.h"
 #include "UART.h"
 #include "service_wait.h"
 
@@ -903,6 +903,7 @@ void Parse_MQTT_Broadcast_Message(const char *json_str){
 
     if(type == 0){
         int work = -1;
+        uint8_t owner_leave_flow = 0;
         const char *work_ptr = strstr(json_str, "\"work\":");
         if(work_ptr != NULL){
             sscanf(work_ptr, "\"work\":%d", &work);
@@ -917,13 +918,16 @@ void Parse_MQTT_Broadcast_Message(const char *json_str){
             UART1_SendString("[MQTT Parse] Ignore my own Type0\r\n");
             return;
         }
+        owner_leave_flow = (work == 3 || work == 4 || work == 5) ? 1 : 0;
+        if(owner_leave_flow &&
+           car_id == ServiceWait_GetOwnerCarId() &&
+           ServiceWait_IsAtWaitNode()){
+            UART1_SendString("[ServiceWait] Owner leaving flow, apply real destination\r\n");
+            ServiceWait_ApplyRealDestination("[ServiceWait] Owner leaving flow, apply real destination");
+            return;
+        }
+
         if(work == 1 || work == 3){
-            if(car_id == ServiceWait_GetOwnerCarId() &&
-               ServiceWait_IsAtWaitNode()){
-                UART1_SendString("[ServiceWait] Owner entered return flow, apply real destination\r\n");
-                ServiceWait_ApplyRealDestination("[ServiceWait] Owner return flow, apply real destination");
-                return;
-            }
             uint8_t updated = Car_Queue_Update(car_id, work);
             if(updated){
                 AcceptUpdate = 1;
@@ -957,12 +961,6 @@ void Parse_MQTT_Broadcast_Message(const char *json_str){
         }
 
         else if(work == 4 || work == 5){
-            if(car_id == ServiceWait_GetOwnerCarId() &&
-               ServiceWait_IsAtWaitNode()){
-                UART1_SendString("[ServiceWait] Owner is leaving by Type0, apply real destination\r\n");
-                ServiceWait_ApplyRealDestination("[ServiceWait] Owner running, apply real destination");
-                return;
-            }
             UART1_SendString("[MQTT Parse] Other car running, remember running car and remove from queue\r\n");
             Car_Queue_Update(car_id, 0);
             Car_Queue_Print();
