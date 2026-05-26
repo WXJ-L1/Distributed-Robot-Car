@@ -16,7 +16,7 @@
 
 // ========== 用户可以调节的转弯参数 ==========
 #define TURN_SPEED_DEFAULT  600   // 原地转弯的默认速度 (依据你的PWM 0-999)
-#define TURN_SPEED_MID  500
+#define TURN_SPEED_MID  750
 #define TURN_SPEED_LOW  350
 #define TURN_SPEED_HIGH  750
 #define TURN_SPEED_MAX 1000

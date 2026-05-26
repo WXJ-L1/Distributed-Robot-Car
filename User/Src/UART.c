@@ -398,7 +398,7 @@ void WIFI_Init(void){
     }
 
     ESP8266_SendCmd("AT+CIPMUX=0\r\n", "OK", 1000);
-    if(ESP8266_SendCmd("AT+CIPSTART=\"UDP\",\"192.168.244.213\",8080,10001,0\r\n", "OK", 5000)){
+    if(ESP8266_SendCmd("AT+CIPSTART=\"UDP\",\"192.168.26.107\",8080,10001,0\r\n", "OK", 5000)){
         OLED_ShowString(0, 2, "UDP: OK");
         osDelay(500);
         if(ESP8266_SendCmd("AT+CIPSEND=11\r\n", ">", 1000)){
