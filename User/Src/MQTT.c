@@ -22,7 +22,7 @@
 
 #define MQTT_BROKER            "broker.emqx.io"
 #define MQTT_PORT              1883
-#define MQTT_CLIENT_ID         "CAR1_MQTT_CLIENT"
+#define MQTT_CLIENT_ID         "CAR2_MQTT_CLIENT"
 
 #define MQTT_DMA_RX_SIZE       128
 #define MQTT_IRQ_BUF_SIZE      512
@@ -255,7 +255,7 @@ uint8_t MQTT_Init(void){
     }
 
     MQTT_Show("MODE");
-    if(!MQTT_SendWait("AT+CWMODE=1\r\n", "OK", 3000)){
+    if(!MQTT_SendWait("AT+CWMODE=0\r\n", "OK", 3000)){
         MQTT_Show("MODE FAIL");
         return 0;
     }
@@ -263,11 +263,11 @@ uint8_t MQTT_Init(void){
     MQTT_Show("WIFI");
     snprintf(cmd,
              sizeof(cmd),
-             "AT+CWJAP=\"%s\",\"%s\"\r\n",
+             "AT+CWJAP=%s,%s\r\n",
              MQTT_WIFI_SSID,
              MQTT_WIFI_PASSWORD);
 
-    if(!MQTT_SendWait(cmd, "OK", 30000)){
+    if(!MQTT_SendWait(cmd, "+CWJAP:1", 30000)){
         MQTT_Show("WIFI FAIL");
         return 0;
     }
@@ -278,7 +278,7 @@ uint8_t MQTT_Init(void){
     MQTT_Show("MQTT ID");
     snprintf(cmd,
              sizeof(cmd),
-             "AT+MQTTLONGCLIENTID=\"%s\"\r\n",
+             "AT+MQTTLONGCLIENTID=%s\r\n",
              MQTT_CLIENT_ID);
 
     if(!MQTT_SendWait(cmd, "OK", 5000)){
@@ -289,7 +289,7 @@ uint8_t MQTT_Init(void){
     MQTT_Show("MQTT CONN");
     snprintf(cmd,
              sizeof(cmd),
-             "AT+MQTTCONN=\"%s\",%d,1\r\n",
+             "AT+MQTTCONN=%s,%d,1\r\n",
              MQTT_BROKER,
              MQTT_PORT);
 
@@ -301,7 +301,7 @@ uint8_t MQTT_Init(void){
     MQTT_Show("SUB");
     snprintf(cmd,
              sizeof(cmd),
-             "AT+MQTTSUB=\"%s\",0\r\n",
+             "AT+MQTTSUB=%s,0\r\n",
              MQTT_TOPIC);
 
     if(!MQTT_SendWait(cmd, "OK", 5000)){
@@ -372,7 +372,7 @@ uint8_t MQTT_Send(const char *topic, const char *msg)
      */
     snprintf(cmd,
              sizeof(cmd),
-             "AT+MQTTPUBRAW=\"%s\",%u,0,0\r\n",
+             "AT+MQTTPUBRAW=%s,%u,0,0\r\n",
              topic,
              len);
 

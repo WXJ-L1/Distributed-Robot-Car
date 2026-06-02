@@ -21,7 +21,7 @@ void OLED_SendCmd(uint8_t cmd)
     uint8_t buf[2];
     buf[0] = 0x00;
     buf[1] = cmd;
-    HAL_I2C_Master_Transmit(&hi2c2, OLED_ADDRESS, buf, 2, HAL_MAX_DELAY);
+    HAL_I2C_Master_Transmit(&hi2c2, OLED_ADDRESS, buf, 2, 100);
 }
 
 void OLED_SendData(uint8_t *data, uint16_t size)
